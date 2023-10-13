@@ -222,6 +222,39 @@ function Get-PrivatePackagesToCacheOnVHD {
     }
 }
 
+function Update-HnsBinary {
+    # Use the '$env:WindowsPrivatePackagesURL' to store the HNS binary download link
+    if (![string]::IsNullOrEmpty($env:WindowsPrivatePackagesURL)) {
+        Write-Log "WindowsPrivatePackagesURL was set, updating HNS binary."
+        
+        $hnsBinaryDownloadlink = $env:WindowsPrivatePackagesURL
+
+        $dest = "C:\HnsBinary.zip"
+        DownloadFileWithRetry -URL $hnsBinaryDownloadlink -Dest $dest -redactUrl
+
+        Expand-Archive -Path $dest -DestinationPath "C:\HnsBinary" -Force
+        cd "C:\HnsBinary"
+
+        Write-Log "Backup the original HNS binary."
+        cp C:\windows\system32\HostNetSvc.dll Backup.HostNetSvc.dll
+        cp C:\windows\system32\drivers\vfpext.sys Backup.vfpext.sys
+        Get-ChildItem | Write-Log
+
+        bcdedit /set TESTSIGNING ON
+        bcdedit /debug off
+        bcdedit /bootdebug off
+        # Restart-Computer -force # This is not needed, because the VM will be restarted after this stage
+
+        Write-Log "Replace the HNS binary"
+        cd "HnsBinaries"
+        .\sfpcopy.exe .\HostNetSvc.dll C:\windows\system32\HostNetSvc.dll
+        .\sfpcopy.exe .\vfpext.sys C:\windows\system32\drivers\vfpext.sys
+        # Restart-Computer -force # This is not needed, because the VM will be restarted after this stage
+    } else {
+        Write-Log "WindowsPrivatePackagesURL was not set, skipping HNS binary update."
+    }
+}
+
 function Install-ContainerD {
     # installing containerd during VHD building is to cache container images into the VHD,
     # and the containerd to managed customer containers after provisioning the vm is not necessary
@@ -708,7 +741,12 @@ try{
             Update-Registry
             Get-ContainerImages
             Get-FilesToCacheOnVHD
-            Get-PrivatePackagesToCacheOnVHD
+            #Get-PrivatePackagesToCacheOnVHD
+            #Remove-Item -Path c:\windows-vhd-configuration.ps1
+            #(New-Guid).Guid | Out-File -FilePath 'c:\vhd-id.txt'
+        }
+        "3" {
+            Update-HnsBinary
             Remove-Item -Path c:\windows-vhd-configuration.ps1
             (New-Guid).Guid | Out-File -FilePath 'c:\vhd-id.txt'
         }

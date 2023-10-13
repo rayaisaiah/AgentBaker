@@ -433,6 +433,24 @@ function Test-WindowsDefenderPlatformUpdate {
     }
 }
 
+function Test-HnsBinaryFileHash {
+    # Validate the HNS binary file hash
+    $hnsFileHash = "30BBCC6994DF7DAC9B9DF81022D5C3FC8BFFE7CF42ED2F7BEAAA441F4C331F48"
+    $vfpFileHash = "C2DF8E1C8E948B02199C54AC3CA599F3C05A4280C04F3A38D928C63285E5E1D1"
+    $hnsFileHasInNode = (Get-FileHash C:\windows\system32\HostNetSvc.dll).Hash
+    $vfpFileHashInNode = (Get-FileHash C:\windows\system32\drivers\vfpext.sys).Hash
+    if($hnsFileHash -eq $hnsFileHasInNode) {
+        Write-Output "HNS replacement succesful."
+    } else {
+        Write-ErrorWithTimestamp "HNS replacement failed."
+    }
+    if($vfpFileHash -eq $vfpFileHashInNode) {
+        Write-Output "VFP replacement succesful."
+    } else {
+        Write-ErrorWithTimestamp "VFP replacement failed."
+    }
+}
+
 Test-FilesToCacheOnVHD
 Test-PatchInstalled
 Test-ImagesPulled
@@ -441,4 +459,5 @@ Test-DefenderSignature
 Test-AzureExtensions
 Test-ExcludeUDPSourcePort
 Test-WindowsDefenderPlatformUpdate
+Test-HnsBinaryFileHash
 Remove-Item -Path c:\windows-vhd-configuration.ps1
